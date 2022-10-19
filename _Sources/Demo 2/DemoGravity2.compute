@@ -1,0 +1,41 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel DemoGravity
+
+#include "/Assets/_Sources/Shaders/Galaxy.cginc"
+#include "UnityCG.cginc"
+
+RWStructuredBuffer<Star> _Stars;
+float deltaTime;
+
+float3 _getHoleGravity(float3 pos, float3 starPos)
+{
+    float3 D = pos - starPos;
+    float r = sqrlength(D);
+    float f = max(0.001, 100 / r);
+    return f * normalize(D);
+}
+
+[numthreads(128, 1, 1)]
+void DemoGravity(uint3 id: SV_DispatchThreadID)
+{
+    uint i = id.x;
+    float3 position = _Stars[i].position;
+    float3 velocity = _Stars[i].velocity;
+    
+    //Gravity point
+    float3 pos1 = float3(_SinTime.w * 50, 0, _CosTime.w * 50);
+    float3 pos2 = -pos1;
+    
+    float colorLenght = min(length(pos1 - position), length(pos2 - position));
+    _Stars[i].color.r = saturate(100 / (colorLenght * colorLenght));
+    _Stars[i].color.g = saturate(colorLenght / 600);
+    _Stars[i].color.b = saturate(colorLenght / 200);
+    
+    float3 v1 = _getHoleGravity(pos1, position) * deltaTime;
+    float3 v2 = _getHoleGravity(pos2, position) * deltaTime;
+    velocity += v1 + v2;
+    position += velocity * deltaTime;
+    
+    _Stars[i].velocity = velocity;
+    _Stars[i].position = position;
+}
